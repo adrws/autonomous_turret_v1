@@ -2,6 +2,7 @@ import cv2
 from ultralytics import YOLO
 import zenoh, statistics, json, time
 from datetime import datetime
+import util.keys
 
 KEYPOINT_NAMES = [
     "nose", "left_eye", "right_eye", "left_ear", "right_ear",
@@ -10,7 +11,7 @@ KEYPOINT_NAMES = [
     "left_knee", "right_knee", "left_ankle", "right_ankle"
 ]
 
-CAMERA_HEIGHT = 93 # Camera height above the ground in cm
+CAMERA_HEIGHT = 93
 
 def main():
     camera = cv2.VideoCapture(0)
@@ -71,30 +72,34 @@ def main():
 
 if __name__ == "__main__":
     with zenoh.open(zenoh.Config()) as session:
-        camera_centering_key = "camera_centering/data"
-        camera_centering_pub = session.declare_publisher(camera_centering_key)
-        kinematics_key = "kinematics/data"
-        kinematics_pub = session.declare_publisher(kinematics_key)
+        camera_centering_pub = session.declare_publisher(util.keys.camera_centering_data)
+        kinematics_pub = session.declare_publisher(util.keys.kinematics_data)
 
+        global_start_time = time.perf_counter()
         camera_centering_command_start_time = time.perf_counter()
         camera_centering_command_end_time = None
         kinematics_command_start_time = time.perf_counter()
         kinematics_command_end_time = None
             
         def sendCameraCenteringJSON(offset: int):
+            global camera_centering_command_start_time
             camera_centering_command_end_time = time.perf_counter()
             delay = camera_centering_command_end_time - camera_centering_command_start_time
             
             if delay < 0.015:
                         return
+            
             data = {
-                "offset" : f"{offset}",
+                "error" : f"{offset}",
+                "time" : f"{round(time.perf_counter() - global_start_time, 3)}",
                 "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
             
             camera_centering_pub.put(json.dumps(data))
+            camera_centering_command_start_time = time.perf_counter()
 
         def sendKinematicJSON(obj_height_px: int, height: int):
+            global kinematics_command_start_time
             kinematics_command_end_time = time.perf_counter()
             delay = kinematics_command_end_time - kinematics_command_start_time
             
@@ -107,6 +112,7 @@ if __name__ == "__main__":
                 }
             
             kinematics_pub.put(json.dumps(data))
+            kinematics_command_start_time = time.perf_counter()
     
         main()
 
