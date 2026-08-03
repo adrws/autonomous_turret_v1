@@ -2,7 +2,7 @@ import cv2
 from ultralytics import YOLO
 import zenoh, statistics, json, time
 from datetime import datetime
-import util.keys
+import config
 
 KEYPOINT_NAMES = [
     "nose", "left_eye", "right_eye", "left_ear", "right_ear",
@@ -45,7 +45,7 @@ def main():
             obj_center_x = right_shoulder_x + (left_shoulder_x - right_shoulder_x) // 2
             obj_center_y = left_shoulder_y + (right_hip_y - left_shoulder_y) // 2
             half_side = 30 // 2
-            delta_x = center_x - obj_center_x
+            error = center_x - obj_center_x
             obj_height = right_hip_y - left_shoulder_y
 
             left_shoulder_conf = conf[person_idx, KEYPOINT_NAMES.index("left_shoulder")]
@@ -58,7 +58,7 @@ def main():
                 cv2.rectangle(frame, (left_shoulder_x, left_shoulder_y), (right_shoulder_x, right_hip_y), color=(255,0,0), thickness=2)
                 cv2.rectangle(frame, (obj_center_x - half_side, obj_center_y - half_side), (obj_center_x + half_side, obj_center_y + half_side), color=(255,0,0), thickness=2)
 
-                sendCameraCenteringJSON(delta_x)
+                sendCameraCenteringJSON(error)
                 sendKinematicJSON(obj_height, CAMERA_HEIGHT)
 
 
@@ -72,8 +72,8 @@ def main():
 
 if __name__ == "__main__":
     with zenoh.open(zenoh.Config()) as session:
-        camera_centering_pub = session.declare_publisher(util.keys.camera_centering_data)
-        kinematics_pub = session.declare_publisher(util.keys.kinematics_data)
+        camera_centering_pub = session.declare_publisher(config.camera_centering_data)
+        kinematics_pub = session.declare_publisher(config.kinematics_data)
 
         global_start_time = time.perf_counter()
         camera_centering_command_start_time = time.perf_counter()
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         kinematics_command_start_time = time.perf_counter()
         kinematics_command_end_time = None
             
-        def sendCameraCenteringJSON(offset: int):
+        def sendCameraCenteringJSON(error: int):
             global camera_centering_command_start_time
             camera_centering_command_end_time = time.perf_counter()
             delay = camera_centering_command_end_time - camera_centering_command_start_time
@@ -90,7 +90,7 @@ if __name__ == "__main__":
                         return
             
             data = {
-                "error" : f"{offset}",
+                "error" : f"{error}",
                 "time" : f"{round(time.perf_counter() - global_start_time, 3)}",
                 "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
