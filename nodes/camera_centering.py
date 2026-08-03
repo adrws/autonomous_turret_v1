@@ -1,6 +1,5 @@
 import zenoh, config, json, time, math
 from collections import deque
-import numpy as np
 from datetime import datetime
 
 error_data = deque(maxlen= 100)
