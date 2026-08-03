@@ -2,8 +2,10 @@ import zenoh, config, json, time, math
 from collections import deque
 from datetime import datetime
 
-error_data = deque(maxlen= 100)
-error_data_integral = []
+error_data = deque([0] * 100,maxlen= 100)
+time_data = deque([0] * 100,maxlen= 100)
+error_data_integral = deque([0] * 100,maxlen= 100)
+error_data_derivative = deque([0] * 100,maxlen= 100)
 servo_x_pos = 90
 pixel_focal_length = 4 / 0.0028
 
@@ -40,7 +42,17 @@ def integralAlgorithm() -> float:
     return offset
 
 def derivativeAlgorithm() -> float:
-    return 0
+    y2 = error_data[-1]
+    y1 = error_data[-2]
+    x2 = time_data[-1]
+    x1 = time_data[-2]
+
+    x_derivative = (y2-y1) / (x2-x1)
+
+    offset = (math.atan2(x_derivative, pixel_focal_length)) * (180/math.pi)
+    print(offset)
+
+    return offset
 
 def main():
     while True:
@@ -61,7 +73,7 @@ def main():
         derivative_val = derivativeAlgorithm()
 
         servo_offset = int((kp * proportional_val) + (ki * integral_val) + (kd * derivative_val))
-        print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
+        # print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
 
         sendServoJSON(servo_offset)
 
@@ -79,10 +91,15 @@ if __name__ == "__main__":
             global data_recieved_flag
             data = json.loads(sample.payload.to_string())
             error = int(data["error"])
-            if -30 <= error <= 30:
+
+            if -config.deadzone <= error <= config.deadzone:
                 error_data.append(0)
             else:
                 error_data.append(error)
+
+            time = float(data["time"])
+            time_data.append(time)
+
             data_recieved_flag = True
 
         def camera_centering_feedback_cb(sample: zenoh.Sample):

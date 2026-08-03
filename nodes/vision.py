@@ -44,7 +44,7 @@ def main():
             right_hip_x, right_hip_y = xy [person_idx, KEYPOINT_NAMES.index("right_hip")].astype(int)
             obj_center_x = right_shoulder_x + (left_shoulder_x - right_shoulder_x) // 2
             obj_center_y = left_shoulder_y + (right_hip_y - left_shoulder_y) // 2
-            half_side = 30 // 2
+            half_side = config.deadzone // 2
             error = center_x - obj_center_x
             obj_height = right_hip_y - left_shoulder_y
 
