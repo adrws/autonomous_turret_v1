@@ -3,14 +3,14 @@ from collections import deque
 from datetime import datetime
 
 error_data = deque([0] * 100,maxlen= 100)
-time_data = deque([0] * 100,maxlen= 100)
-error_data_integral = deque([0] * 100,maxlen= 100)
-error_data_derivative = deque([0] * 100,maxlen= 100)
+time_data : deque[float] = deque([0] * 100,maxlen= 100)
+error_data_integral : deque[float] = deque([0] * 100,maxlen= 100)
+error_data_derivative : deque[float] = deque([0] * 100,maxlen= 100)
 servo_x_pos = 90
 pixel_focal_length = 4 / 0.0028
 
 kp = 1.0
-ki = 0.001
+ki = 0.000001
 kd = 1.0
 
 command_recieved_flag = None
@@ -50,7 +50,6 @@ def derivativeAlgorithm() -> float:
     x_derivative = (y2-y1) / (x2-x1)
 
     offset = (math.atan2(x_derivative, pixel_focal_length)) * (180/math.pi)
-    print(offset)
 
     return offset
 
@@ -64,6 +63,7 @@ def main():
         algorithm_delay = algorithm_end_time - algorithm_start_time
 
         if algorithm_delay < 0.01:
+            time.sleep(0.01)
             continue
         # if command_recieved_flag is False:
         #     continue
@@ -73,9 +73,9 @@ def main():
         derivative_val = derivativeAlgorithm()
 
         servo_offset = int((kp * proportional_val) + (ki * integral_val) + (kd * derivative_val))
-        # print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
+        print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
 
-        sendServoJSON(servo_offset)
+        sendServoXJSON(servo_offset)
 
         servo_x_pos += servo_offset
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
             command_recieved = bool(data["command_recieved"])
             command_recieved_flag = command_recieved
 
-        def sendServoJSON(offset):
+        def sendServoXJSON(offset):
             data = {
                 "command" : "setX",
                 "angle" : f"{servo_x_pos + offset}",
@@ -124,6 +124,7 @@ if __name__ == "__main__":
         algorithm_start_time = time.perf_counter()
 
         while True:
+            time.sleep(0.01)
             if data_recieved_flag is True:
                 main()
 

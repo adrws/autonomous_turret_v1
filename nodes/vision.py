@@ -98,7 +98,7 @@ if __name__ == "__main__":
             camera_centering_pub.put(json.dumps(data))
             camera_centering_command_start_time = time.perf_counter()
 
-        def sendKinematicJSON(obj_height_px: int, height: int):
+        def sendKinematicJSON(obj_px_height: int, height: int):
             global kinematics_command_start_time
             kinematics_command_end_time = time.perf_counter()
             delay = kinematics_command_end_time - kinematics_command_start_time
@@ -106,8 +106,8 @@ if __name__ == "__main__":
             if delay < 0.015:
                         return
             data = {
-                "object_height_px" : f"{obj_height_px}",
-                "elevation" : f"{height}",
+                "object_px_height" : f"{obj_px_height}",
+                "camera_height" : f"{height}",
                 "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 }
             
