@@ -3,9 +3,9 @@ from collections import deque
 from datetime import datetime
 
 error_data = deque([0] * 100,maxlen= 100) # deque makes list of 100 things that are all 0
-time_data = deque([0] * 100,maxlen= 100) # can add / remove items from front or back of list
-error_data_integral = deque([0] * 100,maxlen= 100) # this does not move everything, but only the selected item
-error_data_derivative = deque([0] * 100,maxlen= 100) # makes everything much faster and same time if 5000 or 5 items in list
+time_data : deque[float] = deque([0] * 100,maxlen= 100) # can add / remove items from front or back of list
+error_data_integral : deque[float] = deque([0] * 100,maxlen= 100) # this does not move everything, but only the selected item
+error_data_derivative : deque[float] = deque([0] * 100,maxlen= 100) # makes everything much faster and same time if 5000 or 5 items in list
 servo_x_pos = 90
 pixel_focal_length = 4 / 0.0028
 
