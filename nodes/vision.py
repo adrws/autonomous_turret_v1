@@ -58,8 +58,8 @@ def main():
                 cv2.rectangle(frame, (left_shoulder_x, left_shoulder_y), (right_shoulder_x, right_hip_y), color=(255,0,0), thickness=2)
                 cv2.rectangle(frame, (obj_center_x - half_side, obj_center_y - half_side), (obj_center_x + half_side, obj_center_y + half_side), color=(255,0,0), thickness=2)
 
-                sendCameraCenteringJSON(error)
-                sendKinematicJSON(obj_height, CAMERA_HEIGHT)
+                sendCameraCenteringData(error)
+                sendKinematicData(obj_height, CAMERA_HEIGHT)
 
 
         cv2.imshow('Camera View', frame)
@@ -81,7 +81,7 @@ if __name__ == "__main__":
         kinematics_command_start_time = time.perf_counter()
         kinematics_command_end_time = None
             
-        def sendCameraCenteringJSON(error: int):
+        def sendCameraCenteringData(error: int):
             global camera_centering_command_start_time
             camera_centering_command_end_time = time.perf_counter()
             delay = camera_centering_command_end_time - camera_centering_command_start_time
@@ -98,7 +98,7 @@ if __name__ == "__main__":
             camera_centering_pub.put(json.dumps(data))
             camera_centering_command_start_time = time.perf_counter()
 
-        def sendKinematicJSON(obj_px_height: int, height: int):
+        def sendKinematicData(obj_px_height: int, height: int):
             global kinematics_command_start_time
             kinematics_command_end_time = time.perf_counter()
             delay = kinematics_command_end_time - kinematics_command_start_time

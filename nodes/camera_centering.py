@@ -1,11 +1,12 @@
 import zenoh, config, json, time, math
 from collections import deque 
 from datetime import datetime
+from config import Direction
 
-error_data = deque([0] * 100,maxlen= 100) # deque makes list of 100 things that are all 0
-time_data : deque[float] = deque([0] * 100,maxlen= 100) # can add / remove items from front or back of list
-error_data_integral : deque[float] = deque([0] * 100,maxlen= 100) # this does not move everything, but only the selected item
-error_data_derivative : deque[float] = deque([0] * 100,maxlen= 100) # makes everything much faster and same time if 5000 or 5 items in list
+error_data = deque([0] * 100,maxlen= 100) 
+time_data : deque[float] = deque([0] * 100,maxlen= 100) 
+error_data_integral : deque[float] = deque([0] * 100,maxlen= 100) 
+error_data_derivative : deque[float] = deque([0] * 100,maxlen= 100)
 servo_x_pos = 90
 pixel_focal_length = 4 / 0.0028
 
@@ -18,53 +19,52 @@ command_recieved_flag = None
 data_recieved_flag = False
 
 def proportionalAlgorithm() -> float:
-    x = error_data[-1] # last item in list
+    x = error_data[-1] 
 
     if x == 0:
-        return 0 # if error is 0, return 0
+        return 0 
     
-    offset = (math.atan2(x, pixel_focal_length)) * (180/math.pi) # calulates angle from center in degrees
+    offset = (math.atan2(x, pixel_focal_length)) * (180/math.pi) 
 
     return offset
 
 def integralAlgorithm() -> float:
-    x = error_data[-1] # last item in list (counts from back of array instead of front)
+    x = error_data[-1]
 
     if x == 0:
-        error_data_integral.clear() # clears old data
+        error_data_integral.clear()
         return 0
     else:
-        error_data_integral.append(x) # adds value to end of list if not in center
+        error_data_integral.append(x) 
 
-    x_integ = sum(error_data_integral) # sum of all values in list (area under curve)
-    offset = (math.atan2(x_integ, pixel_focal_length)) * (180/math.pi) # finds angle
-    offset = max(-12.63, min(offset, 12.63)) # clamping so no overboard values
+    x_integ = sum(error_data_integral) 
+    offset = (math.atan2(x_integ, pixel_focal_length)) * (180/math.pi) 
+    offset = max(-12.63, min(offset, 12.63)) 
 
     return offset
 
 def derivativeAlgorithm() -> float:
-    y2 = error_data[-1] # last item in list
-    y1 = error_data[-2] # second last item in list (meant to measure rate of change)
+    y2 = error_data[-1] 
+    y1 = error_data[-2]
     x2 = time_data[-1]
     x1 = time_data[-2]
 
     x_derivative = (y2-y1) / (x2-x1)
 
-    offset = (math.atan2(x_derivative, pixel_focal_length)) * (180/math.pi) # gets angle
-    print(offset) # ask why print and also return
+    offset = (math.atan2(x_derivative, pixel_focal_length)) * (180/math.pi) 
 
     return offset
 
 def main():
     while True:
-        global algorithm_start_time # global variables that can be used in other functions
+        global algorithm_start_time, centered_end_time, centered_duration
         global kp, ki, kd
-        global servo_x_pos, command_recieved_flag, data_recieved_flag, error_data, error_data_integral
+        global servo_x_pos, command_recieved_flag, data_recieved_flag, error_data, error_data_integral, centered_flag
 
-        algorithm_end_time = time.perf_counter() # gets time when function ends (should it be this precise)
-        algorithm_delay = algorithm_end_time - algorithm_start_time # difference between start and end time
+        algorithm_end_time = time.perf_counter()
+        algorithm_delay = algorithm_end_time - algorithm_start_time
 
-        if algorithm_delay < 0.01: # Cap between time it takes to process function
+        if algorithm_delay < 0.01:
             continue
         # if command_recieved_flag is False:
         #     continue
@@ -76,30 +76,44 @@ def main():
         servo_offset = int((kp * proportional_val) + (ki * integral_val) + (kd * derivative_val))
         # print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
 
-        sendServoJSON(servo_offset) # sends offset to the servo via JSON? (would maybe use zenoh + serial)
+        # sendServoCMD(servo_offset)
 
-        servo_x_pos += servo_offset # adds offset to current servo position
+        centered_end_time = time.perf_counter()
+        centered_duration = centered_end_time - centered_start_time
+
+        if centered_flag:
+            sendMotorCMD(255, Direction.left)
+            sendMotorCMD(255, Direction.right)
+        else:
+            sendMotorCMD(0, Direction.left)
+            sendMotorCMD(0, Direction.right)
 
         # command_recieved_flag = False
-        data_recieved_flag = False # ASK ANDREW
+        data_recieved_flag = False
         algorithm_start_time = time.perf_counter()
 
        
-if __name__ == "__main__": # so when this script is run, it will name the file main and run the code in this function first
-    with zenoh.open(zenoh.Config()) as session: # opens the equivalent of a tcp connection to the zenoh server
-        # when writing a function w zenoh, it needs to be in this function, cant be outside
-        def camera_centering_data_cb(sample: zenoh.Sample): # if data recieved run this
-            global data_recieved_flag
-            data = json.loads(sample.payload.to_string()) # converts string to dictionary
-            error = int(data["error"]) # converts string to integer
+if __name__ == "__main__": 
+    with zenoh.open(zenoh.Config()) as session:
+        def camera_centering_data_cb(sample: zenoh.Sample): 
+            global data_recieved_flag, centered_start_time, centered_end_time, centered_flag, centered_duration
+            data = json.loads(sample.payload.to_string()) 
+            error = int(data["error"]) 
 
-            if -config.deadzone <= error <= config.deadzone:
-                error_data.append(0) # if error in deadzone, set to 0
+            if -config.deadzone <= error <= config.deadzone: # If value is in deadzone then it is set to zero.
+                error_data.append(0) 
             else:
-                error_data.append(error) # if error not in deadzone, add to list
+                error_data.append(error) 
 
-            time = float(data["time"]) # converts 
-            time_data.append(time)
+            t = float(data["time"]) 
+            time_data.append(t)
+
+            if error_data[-1] == 0 and error_data[-2] != 0: # Checks if the camera has just been centered on object to start timer.
+                centered_start_time = time.perf_counter()
+            elif error_data[-1] != 0: 
+                centered_flag = False
+
+            centered_flag = error_data[-1] == 0 and centered_duration > 0.5 # Checks if camera is centered and has been for > 200ms.
 
             data_recieved_flag = True
 
@@ -109,7 +123,9 @@ if __name__ == "__main__": # so when this script is run, it will name the file m
             command_recieved = bool(data["command_recieved"])
             command_recieved_flag = command_recieved
 
-        def sendServoJSON(offset):
+        def sendServoCMD(offset):
+            global servo_x_pos
+
             data = {
                 "command" : "setX",
                 "angle" : f"{servo_x_pos + offset}",
@@ -117,12 +133,29 @@ if __name__ == "__main__": # so when this script is run, it will name the file m
             }
 
             camera_centering_pub.put(json.dumps(data))
+
+            servo_x_pos = max(0, min(servo_x_pos + offset, 180))
+
+        def sendMotorCMD(pwm: int, direction: config.Direction):
+            data = {
+            "command": "setSpeed",
+            "motor": f"{direction.name}",
+            "speed" : f"{pwm}",
+            "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+
+            camera_centering_pub.put(json.dumps(data))
+
             
         camera_centering_sub = session.declare_subscriber(config.camera_centering_data, camera_centering_data_cb)
         camera_centering_pub = session.declare_publisher(config.camera_centering_commands)
         hardware_sub = session.declare_subscriber(config.camera_centering_feedback)
 
         algorithm_start_time = time.perf_counter()
+        centered_start_time = 0
+        centered_end_time = 0
+        centered_duration = 0
+        centered_flag = None
 
         while True:
             if data_recieved_flag is True:
