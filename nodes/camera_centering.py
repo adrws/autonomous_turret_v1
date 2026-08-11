@@ -66,24 +66,25 @@ def main():
         algorithm_end_time = time.perf_counter()
         algorithm_delay = algorithm_end_time - algorithm_start_time
 
-        if algorithm_delay < 0.01:
+        if algorithm_delay < 0.01: # PID control loop has a minimum delay of 10ms for performance reasons.
             continue
-        # if command_recieved_flag is False:
+        # if command_recieved_flag is False: # The loop is closed so it will only run if the last command was executed by hardware.
         #     continue
 
         proportional_val = proportionalAlgorithm()
         integral_val = integralAlgorithm()
         derivative_val = derivativeAlgorithm()
 
-        servo_offset = int((kp * proportional_val) + (ki * integral_val) + (kd * derivative_val))
+        servo_offset = int((kp * proportional_val) + (ki * integral_val) + (kd * derivative_val)) # Each function returns the type of error value multiplied by their constants to get offset to move servo.
+
         # print(f"servo_offset = (kp: {kp} * P: {proportional_val}) + (ki: {ki} * I: {integral_val}) + (kd: {kd} * D: {derivative_val}) = {servo_offset}")
 
-        # sendServoCMD(servo_offset)
+        sendServoCMD(servo_offset)
 
         centered_end_time = time.perf_counter()
         centered_duration = centered_end_time - centered_start_time
 
-        if centered_flag:
+        if centered_flag: # Checks if motor is centered on target for atleast 500ms.
             sendMotorCMD(255, Direction.left)
             sendMotorCMD(255, Direction.right)
         else:
@@ -97,12 +98,13 @@ def main():
        
 if __name__ == "__main__": 
     with zenoh.open(zenoh.Config()) as session:
-        def camera_centering_data_cb(sample: zenoh.Sample): 
+
+        def camera_centering_data_cb(sample: zenoh.Sample): # Recieves camera_centering data from vision node and then stores it in deque and updates flags.
             global data_recieved_flag, centered_start_time, centered_end_time, centered_flag, centered_duration
             data = json.loads(sample.payload.to_string()) 
             error = int(data["error"]) 
 
-            if -config.deadzone <= error <= config.deadzone: # If value is in deadzone then it is set to zero.
+            if -config.deadzone <= error <= config.deadzone: # When data is recieved, if value is in deadzone then it is set to zero.
                 error_data.append(0) 
             else:
                 error_data.append(error) 
@@ -110,22 +112,22 @@ if __name__ == "__main__":
             t = float(data["time"]) 
             time_data.append(t)
 
-            if error_data[-1] == 0 and error_data[-2] != 0: # Checks if the camera has just been centered on object to start timer.
+            if error_data[-1] == 0 and error_data[-2] != 0: # Checks if the camera has just been centered on object to start timer for centered_flag.
                 centered_start_time = time.perf_counter()
             elif error_data[-1] != 0: 
                 centered_flag = False
 
-            centered_flag = error_data[-1] == 0 and centered_duration > 0.5 # Checks if camera is centered and has been for > 500ms.
+            centered_flag = error_data[-1] == 0 and centered_duration > 0.5
 
             data_recieved_flag = True
 
-        def camera_centering_feedback_cb(sample: zenoh.Sample):
+        def camera_centering_feedback_cb(sample: zenoh.Sample): # Recieved feedback for whether hardware has executed command. (NOT IMPLEMENTED)
             global command_recieved_flag
             data = json.loads(sample.payload.to_string())
             command_recieved = bool(data["command_recieved"])
             command_recieved_flag = command_recieved
 
-        def sendServoCMD(offset):
+        def sendServoCMD(offset): # Sends data for servo motors.
             global servo_x_pos
 
             data = {
@@ -138,10 +140,13 @@ if __name__ == "__main__":
 
             servo_x_pos = max(0, min(servo_x_pos + offset, 180))
 
-        def sendMotorCMD(pwm: int, direction: config.Direction):
+        def sendMotorCMD(pwm: int, direction: config.Direction): # Sends data for motors.
             global prev_left_motor_state, prev_right_motor_state
 
-            if (direction.name == "right" and prev_right_motor_state == pwm) or (direction.name == "left" and prev_left_motor_state == pwm):
+            stale_right_command = direction.name == "right" and prev_right_motor_state == pwm
+            stale_left_command = direction.name == "left" and prev_left_motor_state == pwm
+
+            if stale_right_command or stale_left_command: # Makes sure the same command isn't send more than once.
                 return
 
             data = {
@@ -170,7 +175,7 @@ if __name__ == "__main__":
         centered_flag = None
 
         while True:
-            if data_recieved_flag is True:
+            if data_recieved_flag is True: # PID control loop will only run when data is recieved.
                 main()
 
             
