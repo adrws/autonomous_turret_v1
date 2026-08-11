@@ -9,6 +9,8 @@ error_data_integral : deque[float] = deque([0] * 100,maxlen= 100)
 error_data_derivative : deque[float] = deque([0] * 100,maxlen= 100)
 servo_x_pos = 90
 pixel_focal_length = 4 / 0.0028
+prev_right_motor_state = 0
+prev_left_motor_state = 0
 
 # PID values
 kp = 1.0 # proportional gain (moves towards target)
@@ -113,7 +115,7 @@ if __name__ == "__main__":
             elif error_data[-1] != 0: 
                 centered_flag = False
 
-            centered_flag = error_data[-1] == 0 and centered_duration > 0.5 # Checks if camera is centered and has been for > 200ms.
+            centered_flag = error_data[-1] == 0 and centered_duration > 0.5 # Checks if camera is centered and has been for > 500ms.
 
             data_recieved_flag = True
 
@@ -137,12 +139,22 @@ if __name__ == "__main__":
             servo_x_pos = max(0, min(servo_x_pos + offset, 180))
 
         def sendMotorCMD(pwm: int, direction: config.Direction):
+            global prev_left_motor_state, prev_right_motor_state
+
+            if (direction.name == "right" and prev_right_motor_state == pwm) or (direction.name == "left" and prev_left_motor_state == pwm):
+                return
+
             data = {
             "command": "setSpeed",
             "motor": f"{direction.name}",
             "speed" : f"{pwm}",
             "timestamp" : datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
+
+            if direction.name == "right":
+                prev_right_motor_state = pwm
+            elif direction.name == "left":
+                prev_left_motor_state = pwm
 
             camera_centering_pub.put(json.dumps(data))
 
