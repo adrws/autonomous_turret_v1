@@ -15,7 +15,7 @@ prev_left_motor_state = 0
 # PID values
 kp = 1.0 # proportional gain (moves towards target)
 ki = 0.001 # integral gain (moves faster if error is constant)
-kd = 1.0 # derivative gain (moves faster if error is changing) hi
+kd = 1.0 # derivative gain (moves faster if error is changing)
 
 command_recieved_flag = None
 data_recieved_flag = False
