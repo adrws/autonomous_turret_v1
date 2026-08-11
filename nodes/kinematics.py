@@ -20,6 +20,8 @@ servo_y_pos = 90
 def initDatabases():
     global kinematics_dataset, kinematics_training_data
 
+    print("\nCreating/importing databases for kinematics data.")
+
     if data_collection_flag is True:
         print(config.data_collection_message)
         kinematics_dataset = pd.DataFrame(columns=["Object Pixel Height", "Camera Height", "Servo Angle"])
@@ -35,6 +37,8 @@ def initDatabases():
 
 def deinitDatabases():
     global kinematics_dataset, kinematics_training_data
+
+    print("\nSaved and exported changes to database.")
 
     if data_collection_flag is True:
         kinematics_dataset.to_csv("database/kinematics_dataset.csv",index=False)
@@ -64,7 +68,7 @@ def main():
 
     if training_flag or autonomous_flag is True:
         servo_angle = predictionModel()
-        sendServoYJSON(servo_angle)
+        sendServoYCMD(servo_angle)
 
         if training_flag and projectile_shot_flag is True:
             print(f"\nModel prediction was at object pixel height: {object_px_height}, camera_height: {camera_height}, servo angle: {servo_y_pos}.")
@@ -89,7 +93,7 @@ def main():
         data_recieved_flag = False
 
 if __name__ == "__main__":
-    def sendServoYJSON(angle: int):
+    def sendServoYCMD(angle: int):
         global servo_y_pos
 
         data = {

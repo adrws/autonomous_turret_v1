@@ -1,3 +1,5 @@
+from enum import Enum
+
 # Zenoh keys
 camera_centering_data = "camera_centering/data"
 camera_centering_commands = "camera_centering/commands"
@@ -21,3 +23,8 @@ training_message = "\nTraining: " \
 "\n - Training will likely take place until the model's accuracy is ~ 0.9."
 autonomous_message = "\nAutonomous: " \
 "\n - The model will automatically make predictions, no manual interventions necessary."
+
+#Enums
+class Direction(Enum):
+    left = 1,
+    right = 2,
