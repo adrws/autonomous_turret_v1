@@ -1,33 +1,24 @@
-import serial, json, zenoh
+import serial, json, time, config, zenoh
 
-#Zenoh data setup
-object_px_height = None
-camera_height = None
-
-# Serial Setup
 PORT ='COM3'
 BAUD = 921600
-port = serial.Serial(PORT, BAUD, timeout = -1) # connecting to port
 
-#Zenoh setup
-
-if __name__ == "__main__": # main loop for zenoh
-    
-    #subscribing to specific sessions (URL's pr much)
-
-    kinematics_data_sub = session.declare_subscriber(config.kinematics_data, kinematics_data_cb)
-    kinematics_commands_pub = session.declare_publisher(config.kinematics_commands)
-
-    # Defining functions that take in data from the sessions we subbed to
+if __name__ == "__main__":
 
     with zenoh.open(zenoh.Config()) as session:
-        def camera_center_data(sample: zenoh.Sample):
-            data = sample.payload.to_string()
-            global object_px_height = int(data["object_px_height"])
-            global camera_height = int(data["camera_height"])
 
+        def sendSerialCommand(sample: zenoh.Sample):
+                global ser
+        
+                message = sample.payload.to_string() + "\n"
+                ser.write(message.encode('utf-8'))
+        
+        kinematics_commands_sub = session.declare_subscriber(config.kinematics_commands, sendSerialCommand)
+        camera_centering_commands_sub = session.declare_subscriber(config.camera_centering_commands, sendSerialCommand)
 
-        def kin_data(sample: zenoh.Sample):
+        ser = serial.Serial(PORT, BAUD, timeout = -1)
+        time.sleep(2)
+
 
 
 
