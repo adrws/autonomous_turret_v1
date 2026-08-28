@@ -54,7 +54,7 @@ def main():
 
             confidence = [left_shoulder_conf, right_shoulder_conf, right_hip_conf]
 
-            if statistics.fmean(confidence) > 0.5:
+            if statistics.fmean(confidence) > 0.3:
                 cv2.rectangle(frame, (left_shoulder_x, left_shoulder_y), (right_shoulder_x, right_hip_y), color=(255,0,0), thickness=2)
                 cv2.rectangle(frame, (obj_center_x - half_side, obj_center_y - half_side), (obj_center_x + half_side, obj_center_y + half_side), color=(255,0,0), thickness=2)
 
